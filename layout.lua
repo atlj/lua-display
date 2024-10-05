@@ -338,12 +338,16 @@ end
 ---Side effects baby!
 ---@param monitor ccTweaked.peripherals.Monitor
 ---@param mounter fun(): Component
----@param size Size
 ---@param event_registry CallbackRecord[]
 ---@return  CallbackRecord[]
-function Layout.mount(monitor, mounter, size, event_registry)
+function Layout.mount(monitor, mounter, event_registry)
+  local width, height = monitor.getSize()
+
   local layout_calculated_component = Layout.calculate_layouts(
-    size,
+    {
+      width = width,
+      height = height
+    },
     mounter()
   )
 

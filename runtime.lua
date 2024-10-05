@@ -9,15 +9,14 @@ end
 
 ---@param monitor ccTweaked.peripherals.Monitor
 ---@param Root fun(): Component
----@param size Size
 ---@param log_rerenders boolean
 ---@param event_handler fun(event_name: ccTweaked.os.event, ...): nil
-function Runtime.main_queue(monitor, Root, size, log_rerenders, event_handler)
+function Runtime.main_queue(monitor, Root, log_rerenders, event_handler)
   ---@type CallbackRecord[]
   local event_registry = {}
 
   -- initial render
-  event_registry = Layout.mount(monitor, Root, size, event_registry)
+  event_registry = Layout.mount(monitor, Root, event_registry)
 
   -- main loop
   while true do
@@ -30,7 +29,7 @@ function Runtime.main_queue(monitor, Root, size, log_rerenders, event_handler)
       end
 
       event_registry = {}
-      event_registry = Layout.mount(monitor, Root, size, event_registry)
+      event_registry = Layout.mount(monitor, Root, event_registry)
     end
 
     if event == 'monitor_touch' then
