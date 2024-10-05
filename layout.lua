@@ -1,4 +1,5 @@
-local colors = require("colors")
+local colors = require "colors"
+local Events = require "events"
 
 ---@class Components
 local Components = {}
@@ -267,6 +268,22 @@ function Components.Text(input)
   }
 end
 
+---@class Pressable: Component
+---@field on_press function
+
+---@param input Pressable
+---@return Pressable
+function Components.Pressable(input)
+  local modifiers = input.modifiers or {}
+
+  ---@type Pressable
+  return {
+    children = input.children,
+    modifiers = modifiers,
+    on_press = input.on_press
+  }
+end
+
 ---comment
 ---@param input Component
 ---@return Component
@@ -322,22 +339,24 @@ end
 ---@param monitor ccTweaked.peripherals.Monitor
 ---@param component Component
 ---@param size Size
-function Layout.mount(monitor, component, size)
+---@param event_registry CallbackRecord[]
+---@return  CallbackRecord[]
+function Layout.mount(monitor, component, size, event_registry)
   local layout_calculated_component = Layout.calculate_layouts(
     size,
     component
   )
 
   draw_recursive(monitor, layout_calculated_component, colors.black)
+
+  return Events.register_all_pressables_recursive(event_registry, layout_calculated_component)
 end
 
 Layout.Components = Components
 
 return Layout
 
--- Add align self
--- text align
+-- Text size
 -- padding margin gap
 -- svg like type
--- button
 -- rerender without diffing
