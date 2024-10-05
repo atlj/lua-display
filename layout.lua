@@ -1,14 +1,3 @@
----@generic T
----@param t1 T[]
----@param t2 T[]
----@return T[]
-local function table_concat(t1, t2)
-  for i = 1, #t2 do
-    t1[#t1 + 1] = t2[i]
-  end
-  return t1
-end
-
 ---@alias align "start"|"end"|"center"
 ---@alias justify "start"|"end"|"center"
 ---@alias direction "horizontal"|"vertical"
@@ -23,6 +12,7 @@ end
 
 ---@class Modifiers
 ---@field background_color ccTweaked.colors.color?
+---@field foreground_color ccTweaked.colors.color?
 ---@field align_items align?
 ---@field justify_content justify?
 ---@field direction direction?
@@ -64,12 +54,11 @@ local function calculate_layouts(parent_size, current_component, start_position)
   local justify_content = current_component.modifiers.justify_content or "start"
   local align_items = current_component.modifiers.align_items or "start"
   local width = current_component.modifiers.width or 0
+  local height = current_component.modifiers.height or 0
 
   if type(width) == "string" then
     width = parent_size.width * parse_percentage(width)
   end
-
-  local height = current_component.modifiers.height or 0
 
   if type(height) == "string" then
     height = parent_size.height * parse_percentage(height)
@@ -78,14 +67,10 @@ local function calculate_layouts(parent_size, current_component, start_position)
   current_component.modifiers.width = width
   current_component.modifiers.height = height
 
-
   if current_component.children == nil then
-    ---@type LayoutCalculatedComponent
-    return {
-      children = nil,
-      modifiers = current_component.modifiers,
-      position = start_position
-    }
+    ---@cast current_component LayoutCalculatedComponent
+    current_component.position = start_position
+    return current_component
   end
 
   ---@type LayoutCalculatedComponent[]
@@ -96,37 +81,49 @@ local function calculate_layouts(parent_size, current_component, start_position)
   local total_children_height = 0
 
   for _, child in pairs(current_component.children) do
-    ---@type Position
-    local pos = {
-      x = start_position.x + x_acc,
-      y = start_position.y + y_acc
-    }
-
     local latest_child = calculate_layouts({
-      -- We know that it's an integer by now
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      width = current_component.modifiers.width,
-      -- We know that it's an integer by now
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      height = current_component.modifiers.height,
-    }, child, pos)
+        -- We know that it's an integer by now
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        width = current_component.modifiers.width,
+        -- We know that it's an integer by now
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        height = current_component.modifiers.height,
+      },
+      child,
+      {
+        x = x_acc,
+        y = y_acc
+      }
+    )
 
-    if direction == "vertical" and latest_child.modifiers.width > total_children_width then
-      total_children_width = latest_child.modifiers.width
+    if direction == "vertical" then
+      if latest_child.modifiers.width > total_children_width then
+        -- We know that it's an integer by now
+        ---@diagnostic disable-next-line: cast-local-type
+        total_children_width = latest_child.modifiers.width
+      end
     else
+      -- We know that it's an integer by now
+      ---@diagnostic disable-next-line: cast-local-type
       total_children_width = total_children_width + latest_child.modifiers.width
     end
 
-    if direction == "horizontal" and latest_child.modifiers.height > total_children_height then
-      total_children_height = latest_child.modifiers.height
+    if direction == "horizontal" then
+      if latest_child.modifiers.height > total_children_height then
+        -- We know that it's an integer by now
+        ---@diagnostic disable-next-line: cast-local-type
+        total_children_height = latest_child.modifiers.height
+      end
     else
+      -- We know that it's an integer by now
+      ---@diagnostic disable-next-line: cast-local-type
       total_children_height = total_children_height + latest_child.modifiers.height
     end
 
-    if direction == "vertical" then
-      y_acc = y_acc + latest_child.position.y
+    if direction == "horizontal" then
+      x_acc = x_acc + latest_child.modifiers.width
     else
-      x_acc = x_acc + latest_child.position.x
+      y_acc = y_acc + latest_child.modifiers.height
     end
 
     table.insert(calculated_children, latest_child)
@@ -182,29 +179,21 @@ local function calculate_layouts(parent_size, current_component, start_position)
   local aligned_children = {}
   -- Handle the justify and align now
   if align_items == 'end' then
-    -- pretty easy, just use the self width/height, and update children positions
-    local acc = 0
     for _, child in pairs(calculated_children) do
       if direction == "horizontal" then
-        child.position.y = start_position.y + current_component.modifiers.height - total_children_height + acc
-        acc = acc + child.modifiers.height
+        child.position.y = current_component.modifiers.height - child.modifiers.height
       else
-        child.position.x = start_position.x + current_component.modifiers.width - total_children_width + acc
-        acc = acc + child.modifiers.width
+        child.position.x = current_component.modifiers.width - child.modifiers.width
       end
 
       table.insert(aligned_children, child)
     end
   elseif align_items == 'center' then
-    local acc = 0
     for _, child in pairs(calculated_children) do
       if direction == "horizontal" then
-        child.position.y = start_position.y + (current_component.modifiers.height / 2) - (total_children_height / 2) +
-            acc
-        acc = acc + child.modifiers.height
+        child.position.y = (current_component.modifiers.height / 2) - (child.modifiers.height / 2)
       else
-        child.position.x = start_position.x + (current_component.modifiers.width / 2) - (total_children_width / 2) + acc
-        acc = acc + child.modifiers.width
+        child.position.x = (current_component.modifiers.width / 2) - (child.modifiers.width / 2)
       end
 
       table.insert(aligned_children, child)
@@ -215,12 +204,10 @@ local function calculate_layouts(parent_size, current_component, start_position)
 
   calculated_children = aligned_children
 
-  ---@type LayoutCalculatedComponent
-  return {
-    children = calculated_children,
-    modifiers = current_component.modifiers,
-    position = start_position
-  }
+  ---@cast current_component LayoutCalculatedComponent
+  current_component.children = calculated_children
+  current_component.position = start_position
+  return current_component
 end
 
 ---@class Text: Component
@@ -230,6 +217,10 @@ end
 ---@return Text
 function Text(input)
   local modifiers = input.modifiers or {}
+
+  if modifiers.foreground_color == nil then
+    modifiers.foreground_color = colors.black
+  end
 
   if modifiers.width == nil then
     modifiers.width = #input.text
@@ -250,14 +241,13 @@ end
 ---comment
 ---@param input Component
 ---@return Component
-function Box(input)
+function Stack(input)
   local modifiers = input.modifiers or {}
 
   ---@type Component
   return {
     children = input.children,
     modifiers = modifiers,
-    text = input.text
   }
 end
 
@@ -278,51 +268,57 @@ function tprint(tbl, indent)
   end
 end
 
-local root = Box {
-  modifiers = {
-    direction = "horizontal",
-    justify_content = "end",
-    align_items = "center",
-    width = '100%',
-    height = '100%',
-  },
-  children = {
-    Box {
-      modifiers = {
-        direction = "vertical",
-        align_items = "end"
-      },
-      children = {
-        Text {
-          text = "Testing"
-        },
-        Text {
-          text = "Testing2"
-        }
-      }
-    }
-  }
-}
+---side effects but recursive x_x
+---@param monitor ccTweaked.peripherals.Monitor
+---@param component LayoutCalculatedComponent
+---@param parent_color ccTweaked.colors.color
+local function draw_recursive(monitor, component, parent_color)
+  local background_color = component.modifiers.background_color or parent_color
+  monitor.setBackgroundColor(background_color)
 
-tprint(
-  calculate_layouts(
-    {
-      width = 100,
-      height = 100
-    },
-    root,
+  for y = component.position.y, component.position.y + component.modifiers.height - 1 do
+    local row = ""
+    if component.text ~= nil then
+      ---@cast component Text
+      -- TODO: add text align stuff
+      row = component.text
+      monitor.setTextColor(component.modifiers.foreground_color)
+    else
+      for x = component.position.x, component.position.x + component.modifiers.width - 1 do
+        row = row .. " "
+      end
+    end
+
+    monitor.setCursorPos(component.position.x + 1, y + 1)
+    monitor.write(row)
+  end
+
+  -- First draw the parent, and then call this on children
+  if component.children == nil then
+    return
+  end
+
+  for _, child in pairs(component.children) do
+    ---@cast child LayoutCalculatedComponent
+    child.position.x = child.position.x + component.position.x
+    child.position.y = child.position.y + component.position.y
+    draw_recursive(monitor, child, background_color)
+  end
+end
+
+---Side effects baby!
+---@param monitor ccTweaked.peripherals.Monitor
+---@param component Component
+---@param size Size
+local function mount(monitor, component, size)
+  local layout_calculated_component = calculate_layouts(
+    size,
+    component,
     {
       x = 0,
       y = 0
     }
   )
-  , 2
-)
 
----Side effects baby!
----@param monitor ccTweaked.peripherals.Monitor
----@param component Component
----@param start_position Position
----@param size Size
-local function draw(monitor, component, start_position, size)
+  draw_recursive(monitor, layout_calculated_component, colors.black)
 end
