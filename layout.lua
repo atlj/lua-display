@@ -359,4 +359,3 @@ return Layout
 -- Text size
 -- padding margin gap
 -- svg like type
--- rerender without diffing
