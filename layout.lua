@@ -22,15 +22,14 @@ end
 ---@field height integer
 
 ---@class Modifiers
----@field backgroundColor ccTweaked.colors.color?
----@field alignItems align?
+---@field background_color ccTweaked.colors.color?
+---@field align_items align?
 ---@field justify_content justify?
 ---@field direction direction?
 ---@field width (string | integer)?
 ---@field height (string | integer)?
 
 ---@class Component
----@field text string?
 ---@field modifiers Modifiers?
 ---@field children Component[]?
 
@@ -63,11 +62,8 @@ end
 local function calculate_layouts(parent_size, current_component, start_position)
   local direction = current_component.modifiers.direction or "horizontal"
   local justify_content = current_component.modifiers.justify_content or "start"
+  local align_items = current_component.modifiers.align_items or "start"
   local width = current_component.modifiers.width or 0
-
-  if width == 0 and current_component.text ~= nil then
-    width = #current_component.text
-  end
 
   if type(width) == "string" then
     width = parent_size.width * parse_percentage(width)
@@ -88,7 +84,6 @@ local function calculate_layouts(parent_size, current_component, start_position)
     return {
       children = nil,
       modifiers = current_component.modifiers,
-      text = current_component.text,
       position = start_position
     }
   end
@@ -108,7 +103,11 @@ local function calculate_layouts(parent_size, current_component, start_position)
     }
 
     local latest_child = calculate_layouts({
+      -- We know that it's an integer by now
+      ---@diagnostic disable-next-line: assign-type-mismatch
       width = current_component.modifiers.width,
+      -- We know that it's an integer by now
+      ---@diagnostic disable-next-line: assign-type-mismatch
       height = current_component.modifiers.height,
     }, child, pos)
 
@@ -170,14 +169,82 @@ local function calculate_layouts(parent_size, current_component, start_position)
 
   calculated_children = justified_children
 
-  -- handle align now
+  ---@type LayoutCalculatedComponent[]
+  local aligned_children = {}
+  -- Handle the justify and align now
+  if align_items == 'end' then
+    -- pretty easy, just use the self width/height, and update children positions
+    local acc = 0
+    for _, child in pairs(calculated_children) do
+      if direction == "horizontal" then
+        child.position.y = start_position.y + current_component.modifiers.height - total_children_height + acc
+        acc = acc + child.modifiers.height
+      else
+        child.position.x = start_position.x + current_component.modifiers.width - total_children_width + acc
+        acc = acc + child.modifiers.width
+      end
+
+      table.insert(aligned_children, child)
+    end
+  elseif align_items == 'center' then
+    local acc = 0
+    for _, child in pairs(calculated_children) do
+      if direction == "horizontal" then
+        child.position.y = start_position.y + (current_component.modifiers.height / 2) - (total_children_height / 2) +
+            acc
+        acc = acc + child.modifiers.height
+      else
+        child.position.x = start_position.x + (current_component.modifiers.width / 2) - (total_children_width / 2) + acc
+        acc = acc + child.modifiers.width
+      end
+
+      table.insert(aligned_children, child)
+    end
+  else
+    aligned_children = calculated_children
+  end
+
+  calculated_children = aligned_children
 
   ---@type LayoutCalculatedComponent
   return {
     children = calculated_children,
     modifiers = current_component.modifiers,
-    text = current_component.text,
     position = start_position
+  }
+end
+
+---@class Text: Component
+---@field text string
+
+---@param input Text
+---@return Text
+function Text(input)
+  local modifiers = input.modifiers or {}
+
+  if modifiers.width == nil then
+    modifiers.width = #input.text
+  end
+
+  ---@type Text
+  return {
+    children = input.children,
+    modifiers = modifiers,
+    text = input.text
+  }
+end
+
+---comment
+---@param input Component
+---@return Component
+function Box(input)
+  local modifiers = input.modifiers or {}
+
+  ---@type Component
+  return {
+    children = input.children,
+    modifiers = modifiers,
+    text = input.text
   }
 end
 
@@ -198,29 +265,17 @@ function tprint(tbl, indent)
   end
 end
 
----@type Component
-local root = {
+local root = Box {
   modifiers = {
-    justify_content = "center",
-    alignItems = "center",
     direction = "horizontal",
-    width = "100%",
-    height = "100%"
+    justify_content = "center",
+    align_items = "center",
+    width = '100%',
+    height = '100%',
   },
   children = {
-    {
-      modifiers = {
-        backgroundColor = 3,
-        width = 20,
-        height = "50%",
-      }
-    },
-    {
-      modifiers = {
-        backgroundColor = 3,
-        width = 20,
-        height = "50%",
-      }
+    Text {
+      text = "Testing"
     }
   }
 }
