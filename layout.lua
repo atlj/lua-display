@@ -337,14 +337,14 @@ end
 
 ---Side effects baby!
 ---@param monitor ccTweaked.peripherals.Monitor
----@param component Component
+---@param mounter fun(): Component
 ---@param size Size
 ---@param event_registry CallbackRecord[]
 ---@return  CallbackRecord[]
-function Layout.mount(monitor, component, size, event_registry)
+function Layout.mount(monitor, mounter, size, event_registry)
   local layout_calculated_component = Layout.calculate_layouts(
     size,
-    component
+    mounter()
   )
 
   draw_recursive(monitor, layout_calculated_component, colors.black)
