@@ -1,3 +1,11 @@
+local colors = require("colors")
+
+---@class Components
+local Components = {}
+
+---@class Layout
+local Layout = {}
+
 ---@alias align "start"|"end"|"center"
 ---@alias justify "start"|"end"|"center"
 ---@alias direction "horizontal"|"vertical"
@@ -49,7 +57,7 @@ end
 ---@param current_component Component
 ---@param start_position Position
 ---@return LayoutCalculatedComponent
-local function calculate_layouts(parent_size, current_component, start_position)
+function Layout.calculate_layouts(parent_size, current_component, start_position)
   local direction = current_component.modifiers.direction or "horizontal"
   local justify_content = current_component.modifiers.justify_content or "start"
   local align_items = current_component.modifiers.align_items or "start"
@@ -81,7 +89,7 @@ local function calculate_layouts(parent_size, current_component, start_position)
   local total_children_height = 0
 
   for _, child in pairs(current_component.children) do
-    local latest_child = calculate_layouts({
+    local latest_child = Layout.calculate_layouts({
         -- We know that it's an integer by now
         ---@diagnostic disable-next-line: assign-type-mismatch
         width = current_component.modifiers.width,
@@ -215,7 +223,7 @@ end
 
 ---@param input Text
 ---@return Text
-function Text(input)
+function Components.Text(input)
   local modifiers = input.modifiers or {}
 
   if modifiers.foreground_color == nil then
@@ -241,7 +249,7 @@ end
 ---comment
 ---@param input Component
 ---@return Component
-function Stack(input)
+function Components.Stack(input)
   local modifiers = input.modifiers or {}
 
   ---@type Component
@@ -249,23 +257,6 @@ function Stack(input)
     children = input.children,
     modifiers = modifiers,
   }
-end
-
--- Print contents of `tbl`, with indentation.
--- `indent` sets the initial level of indentation.
-function tprint(tbl, indent)
-  if not indent then indent = 0 end
-  for k, v in pairs(tbl) do
-    formatting = string.rep("  ", indent) .. k .. ": "
-    if type(v) == "table" then
-      print(formatting)
-      tprint(v, indent + 1)
-    elseif type(v) == 'boolean' then
-      print(formatting .. tostring(v))
-    else
-      print(formatting .. v)
-    end
-  end
 end
 
 ---side effects but recursive x_x
@@ -310,7 +301,7 @@ end
 ---@param monitor ccTweaked.peripherals.Monitor
 ---@param component Component
 ---@param size Size
-local function mount(monitor, component, size)
+function Layout.mount(monitor, component, size)
   local layout_calculated_component = calculate_layouts(
     size,
     component,
@@ -322,3 +313,15 @@ local function mount(monitor, component, size)
 
   draw_recursive(monitor, layout_calculated_component, colors.black)
 end
+
+Layout.Components = Components
+
+return Layout
+
+-- text align
+-- space between
+-- padding margin gap
+-- flex
+-- svg like type
+-- button
+-- rerender without diffing
