@@ -393,6 +393,4 @@ Layout.Components = Components
 
 return Layout
 
--- Text size
--- padding margin gap
 -- ZStack/absolute
