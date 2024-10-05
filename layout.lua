@@ -297,6 +297,24 @@ function Components.Stack(input)
   }
 end
 
+---@class Bitmap: Component
+---@field map (0 | 1)[][]
+
+---@param input Bitmap
+function Components.Bitmap(input)
+  local modifiers = input.modifiers or {}
+
+  modifiers.height = #input.map
+  modifiers.width = #(input.map[1])
+
+  ---@type Bitmap
+  return {
+    children = input.children,
+    modifiers = modifiers,
+    map = input.map
+  }
+end
+
 ---side effects but recursive x_x
 ---@param monitor ccTweaked.peripherals.Monitor
 ---@param component LayoutCalculatedComponent
@@ -305,21 +323,36 @@ local function draw_recursive(monitor, component, parent_color)
   local background_color = component.modifiers.background_color or parent_color
   monitor.setBackgroundColor(background_color)
 
-  for y = component.position.y, component.position.y + component.modifiers.height - 1 do
-    local row = ""
-    if component.text ~= nil then
-      ---@cast component Text
-      -- TODO: add text align stuff
-      row = component.text
-      monitor.setTextColor(component.modifiers.foreground_color)
-    else
+  if component.map ~= nil then
+    for y = component.position.y, component.position.y + component.modifiers.height - 1 do
       for x = component.position.x, component.position.x + component.modifiers.width - 1 do
-        row = row .. " "
+        ---@cast component Bitmap
+        local tile = component.map[y - component.position.y + 1][x - component.position.x + 1]
+
+        if tile == 1 then
+          monitor.setBackgroundColor(component.modifiers.background_color)
+          monitor.setCursorPos(x + 1, y + 1)
+          monitor.write(" ")
+        end
       end
     end
+  else
+    for y = component.position.y, component.position.y + component.modifiers.height - 1 do
+      local row = ""
+      if component.text ~= nil then
+        ---@cast component Text
+        -- TODO: add text align stuff
+        row = component.text
+        monitor.setTextColor(component.modifiers.foreground_color)
+      else
+        for x = component.position.x, component.position.x + component.modifiers.width - 1 do
+          row = row .. " "
+        end
+      end
 
-    monitor.setCursorPos(component.position.x + 1, y + 1)
-    monitor.write(row)
+      monitor.setCursorPos(component.position.x + 1, y + 1)
+      monitor.write(row)
+    end
   end
 
   -- First draw the parent, and then call this on children
@@ -362,4 +395,4 @@ return Layout
 
 -- Text size
 -- padding margin gap
--- svg like type
+-- ZStack/absolute
