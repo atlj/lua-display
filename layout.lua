@@ -24,6 +24,7 @@ local Layout = {}
 ---@field align_items align?
 ---@field justify_content justify?
 ---@field direction direction?
+---@field flex integer?
 ---@field width (string | integer)?
 ---@field height (string | integer)?
 
@@ -55,9 +56,8 @@ end
 
 ---@param parent_size Size
 ---@param current_component Component
----@param start_position Position
 ---@return LayoutCalculatedComponent
-function Layout.calculate_layouts(parent_size, current_component, start_position)
+function Layout.calculate_layouts(parent_size, current_component)
   local direction = current_component.modifiers.direction or "horizontal"
   local justify_content = current_component.modifiers.justify_content or "start"
   local align_items = current_component.modifiers.align_items or "start"
@@ -77,14 +77,13 @@ function Layout.calculate_layouts(parent_size, current_component, start_position
 
   if current_component.children == nil then
     ---@cast current_component LayoutCalculatedComponent
-    current_component.position = start_position
+    current_component.position = { x = 0, y = 0 }
     return current_component
   end
 
   ---@type LayoutCalculatedComponent[]
   local calculated_children = {}
-  local x_acc = 0
-  local y_acc = 0
+  local total_flex_value = 0
   local total_children_width = 0
   local total_children_height = 0
 
@@ -97,11 +96,7 @@ function Layout.calculate_layouts(parent_size, current_component, start_position
         ---@diagnostic disable-next-line: assign-type-mismatch
         height = current_component.modifiers.height,
       },
-      child,
-      {
-        x = x_acc,
-        y = y_acc
-      }
+      child
     )
 
     if direction == "vertical" then
@@ -128,11 +123,7 @@ function Layout.calculate_layouts(parent_size, current_component, start_position
       total_children_height = total_children_height + latest_child.modifiers.height
     end
 
-    if direction == "horizontal" then
-      x_acc = x_acc + latest_child.modifiers.width
-    else
-      y_acc = y_acc + latest_child.modifiers.height
-    end
+    total_flex_value = total_flex_value + (latest_child.modifiers.flex or 0)
 
     table.insert(calculated_children, latest_child)
   end
@@ -146,42 +137,72 @@ function Layout.calculate_layouts(parent_size, current_component, start_position
     current_component.modifiers.height = total_children_height
   end
 
+  -- Calculate flex
+
+  local free_available_parent_space = 0
+  if direction == 'vertical' then
+    free_available_parent_space = current_component.modifiers.height - total_children_height
+  else
+    free_available_parent_space = current_component.modifiers.width - total_children_width
+  end
+
+  for _, child in pairs(calculated_children) do
+    if child.modifiers.flex ~= nil and child.modifiers.flex > 0 then
+      local relative_flex = child.modifiers.flex / total_flex_value
+      local space_to_expand = math.ceil(free_available_parent_space * relative_flex)
+      if direction == 'vertical' then
+        child.modifiers.height = child.modifiers.height + space_to_expand
+        total_children_height = current_component.modifiers.height
+      else
+        child.modifiers.width = child.modifiers.width + space_to_expand
+        total_children_width = current_component.modifiers.width
+      end
+    end
+  end
+
+  -- Calculate justify
+
   ---@type LayoutCalculatedComponent[]
   local justified_children = {}
-  -- Handle the justify and align now
-  if justify_content == 'end' then
-    -- pretty easy, just use the self width/height, and update children positions
-    local acc = 0
-    for _, child in pairs(calculated_children) do
+  local acc = 0
+  for _, child in pairs(calculated_children) do
+    if justify_content == 'end' then
       if direction == "vertical" then
-        child.position.y = start_position.y + current_component.modifiers.height - total_children_height + acc
+        child.position.y = current_component.modifiers.height - total_children_height + acc
         acc = acc + child.modifiers.height
       else
-        child.position.x = start_position.x + current_component.modifiers.width - total_children_width + acc
+        child.position.x = current_component.modifiers.width - total_children_width + acc
         acc = acc + child.modifiers.width
       end
 
       table.insert(justified_children, child)
-    end
-  elseif justify_content == 'center' then
-    local acc = 0
-    for _, child in pairs(calculated_children) do
+    elseif justify_content == 'center' then
       if direction == "vertical" then
-        child.position.y = start_position.y + (current_component.modifiers.height / 2) - (total_children_height / 2) +
+        child.position.y = (current_component.modifiers.height / 2) - (total_children_height / 2) +
             acc
         acc = acc + child.modifiers.height
       else
-        child.position.x = start_position.x + (current_component.modifiers.width / 2) - (total_children_width / 2) + acc
+        child.position.x = (current_component.modifiers.width / 2) - (total_children_width / 2) + acc
+        acc = acc + child.modifiers.width
+      end
+
+      table.insert(justified_children, child)
+    else
+      if direction == "vertical" then
+        child.position.y = acc
+        acc = acc + child.modifiers.height
+      else
+        child.position.x = acc
         acc = acc + child.modifiers.width
       end
 
       table.insert(justified_children, child)
     end
-  else
-    justified_children = calculated_children
   end
 
   calculated_children = justified_children
+
+  -- Calculate align
 
   ---@type LayoutCalculatedComponent[]
   local aligned_children = {}
@@ -214,7 +235,7 @@ function Layout.calculate_layouts(parent_size, current_component, start_position
 
   ---@cast current_component LayoutCalculatedComponent
   current_component.children = calculated_children
-  current_component.position = start_position
+  current_component.position = { x = 0, y = 0 }
   return current_component
 end
 
@@ -302,13 +323,9 @@ end
 ---@param component Component
 ---@param size Size
 function Layout.mount(monitor, component, size)
-  local layout_calculated_component = calculate_layouts(
+  local layout_calculated_component = Layout.calculate_layouts(
     size,
-    component,
-    {
-      x = 0,
-      y = 0
-    }
+    component
   )
 
   draw_recursive(monitor, layout_calculated_component, colors.black)
@@ -318,10 +335,9 @@ Layout.Components = Components
 
 return Layout
 
+-- Add align self
 -- text align
--- space between
 -- padding margin gap
--- flex
 -- svg like type
 -- button
 -- rerender without diffing
