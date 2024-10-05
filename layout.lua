@@ -111,8 +111,17 @@ local function calculate_layouts(parent_size, current_component, start_position)
       height = current_component.modifiers.height,
     }, child, pos)
 
-    total_children_width = total_children_width + latest_child.modifiers.width
-    total_children_height = total_children_height + latest_child.modifiers.height
+    if direction == "vertical" and latest_child.modifiers.width > total_children_width then
+      total_children_width = latest_child.modifiers.width
+    else
+      total_children_width = total_children_width + latest_child.modifiers.width
+    end
+
+    if direction == "horizontal" and latest_child.modifiers.height > total_children_height then
+      total_children_height = latest_child.modifiers.height
+    else
+      total_children_height = total_children_height + latest_child.modifiers.height
+    end
 
     if direction == "vertical" then
       y_acc = y_acc + latest_child.position.y
@@ -226,6 +235,10 @@ function Text(input)
     modifiers.width = #input.text
   end
 
+  if modifiers.height == nil then
+    modifiers.height = 1
+  end
+
   ---@type Text
   return {
     children = input.children,
@@ -268,14 +281,25 @@ end
 local root = Box {
   modifiers = {
     direction = "horizontal",
-    justify_content = "center",
+    justify_content = "end",
     align_items = "center",
     width = '100%',
     height = '100%',
   },
   children = {
-    Text {
-      text = "Testing"
+    Box {
+      modifiers = {
+        direction = "vertical",
+        align_items = "end"
+      },
+      children = {
+        Text {
+          text = "Testing"
+        },
+        Text {
+          text = "Testing2"
+        }
+      }
     }
   }
 }
