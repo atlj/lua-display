@@ -22,14 +22,14 @@ local Events = {}
 function register_pressable(registry, component)
   ---@type Range
   local x_range = {
-    range_start = component.position.x + 1,
+    range_start = component.position.x,
     range_end = component.position.x + component.modifiers.width,
   }
 
   ---@type Range
   local y_range = {
-    range_start = component.position.y + 1,
-    range_end = component.position.y + component.modifiers.height + 1,
+    range_start = component.position.y,
+    range_end = component.position.y + component.modifiers.height,
   }
 
   ---@type CallbackRecord
