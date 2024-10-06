@@ -1,4 +1,3 @@
-local colors = require "colors"
 local Events = require "events"
 
 ---@class Components
