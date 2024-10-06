@@ -1,5 +1,5 @@
-local Events = require 'events'
-local Layout = require 'layout'
+local Events = require 'display.events'
+local Layout = require 'display.layout'
 ---@class Runtime
 local Runtime = {}
 

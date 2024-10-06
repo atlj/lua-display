@@ -1,4 +1,4 @@
-local Events = require "events"
+local Events = require "display.events"
 
 ---@class Components
 local Components = {}
